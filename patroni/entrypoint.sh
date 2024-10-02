@@ -21,7 +21,7 @@ if [ ! -d "/var/lib/postgresql/data" ]; then
     exec psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<-EOSQL
         CREATE DATABASE "${POSTGRES_DB}";
         GRANT ALL PRIVILEGES ON DATABASE "${POSTGRES_DB}" TO "${POSTGRES_USER}";
-    EOSQL
+EOSQL
 
 else
     echo "Data directory already exists, skipping initialization."
