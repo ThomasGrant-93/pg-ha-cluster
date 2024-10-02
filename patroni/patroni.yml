@@ -1,0 +1,85 @@
+scope: ${PATRONI_SCOPE}
+#namespace: /pg15_cluster/
+name: ${PATRONI_NAME}
+
+log:
+  format: '%(asctime)s %(levelname)s: %(message)s'
+  level: ERROR
+  max_queue_size: 1000
+  traceback_level: ERROR
+  type: plain
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_NAME}:8008
+  authentication:
+    username: ${PATRONI_HTTP_ADMIN}
+    password: ${PATRONI_HTTP_PASSWORD}
+
+etcd3:
+  host: etcd0:2379
+
+bootstrap:
+  dcs:
+    loop_wait: 10
+    retry_timeout: 10
+    ttl: 30
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        ssl: off
+        hot_standby: 'on'
+        max_connections: 100
+        shared_buffers: 2G
+        effective_cache_size: 6G
+        work_mem: 128MB
+        maintenance_work_mem: 1GB
+        log_min_duration_statement: 100ms
+        idle_in_transaction_session_timeout: 15s
+        shared_preload_libraries: 'pg_stat_statements'
+        pg_stat_statements.max: 10000
+        pg_stat_statements.track: 'all'
+        max_locks_per_transaction: 64
+        max_prepared_transactions: 0
+        max_replication_slots: 10
+        max_wal_senders: 10
+        max_worker_processes: 8
+        track_commit_timestamp: 'off'
+        wal_keep_size: 128MB
+        wal_level: logical
+        wal_log_hints: 'on'
+  initdb:
+    - encoding: UTF8
+    - locale: en_US.UTF-8
+    - data-checksums
+
+postgresql:
+  authentication:
+    replication:
+      password: replicator
+      username: replicator
+    superuser:
+      password: edw_admin_user
+      username: edw_admin_user
+  bin_dir: ''
+  connect_address: ${PATRONI_POSTGRESQL_CONNECT_ADDRESS}
+  data_dir: /var/lib/postgresql/data
+  listen: 0.0.0.0:5432
+  parameters:
+    password_encryption: scram-sha-256
+  pg_hba:
+    - local   all             all                                 scram-sha-256
+    - host    all             all             all                 scram-sha-256
+    - host    replication     replicator      all                 scram-sha-256
+
+watchdog:
+  mode: automatic
+  device: /dev/watchdog
+  safety_margin: 5
+
+tags:
+  clonefrom: true
+  noloadbalance: false
+  nostream: false
+  nosync: false(venv)

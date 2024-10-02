@@ -1,0 +1,6 @@
+**
+!docker-entrypoint-initdb.d/**
+!pgbouncer/**
+!etcd/**
+!patroni/**
+!.env

@@ -1,0 +1,139 @@
+x-pgbouncer-common:
+    &pgbouncer-common
+    image: bitnami/pgbouncer:1.23.1
+    ports:
+      - "6432"
+    env_file:
+      - .env
+    environment:
+      &pgbouncer-env-common
+      PGBOUNCER_AUTH_TYPE: scram-sha-256
+      POSTGRESQL_USERNAME: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_PORT: 5432
+    restart: unless-stopped
+
+x-postgres-common:
+  &postgres-common
+  image: picasso/pg15-patroni:develop
+  env_file:
+    - .env
+  ports:
+    - "5432"
+    - "8008"
+  environment:
+    &postgres-envs
+    PATRONI_ETCD3_HOSTS: ${PATRONI_ETCD3_HOSTS}
+    PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
+    PATRONI_POSTGRESQL_PGPASSWORD: ${POSTGRES_PASSWORD}
+    PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+    PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER}
+    PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
+  entrypoint: ["/usr/local/bin/entrypoint.sh"]
+  logging:
+    options:
+      max-size: "1m"
+      max-file: "5"
+  depends_on:
+    - etcd0
+  healthcheck:
+    test: [ "CMD", "pg_isready", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+  restart: on-failure
+
+x-etcd-common:
+  &etcd-common
+  image: bitnami/etcd:3.5.16
+  restart: unless-stopped
+  env_file:
+      - .env
+  logging:
+    options:
+      max-size: "1m"
+      max-file: "5"
+  environment:
+    &etcd-envs
+    ALLOW_NONE_AUTHENTICATION: yes
+    ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+    ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+    ETCD_INITIAL_CLUSTER: ${ETCD_INITIAL_CLUSTER}
+    ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster
+    ETCD_INITIAL_CLUSTER_STATE: new
+  ports:
+    - "2379"
+    - "2380"
+
+services:
+  etcd0:
+    <<: *etcd-common
+    environment:
+      <<: *etcd-envs
+      ETCD_NAME: etcd0
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd0:2380
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd0:2379
+    volumes:
+        - etcd-data:/bitnami/etcd
+
+  haproxy:
+    image: haproxy:3.0.5-alpine3.20
+    env_file:
+        - .env
+    ports:
+      - "8404:8404"
+      - "6432:6432"
+      - "6433:6433"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+  pgsql15clu01:
+    <<: *postgres-common
+    environment:
+      <<: *postgres-envs
+      PATRONI_NAME: pgsql15clu01
+      PATRONI_SCOPE: pg15cluster
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu01:5432
+    volumes:
+      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+      - ./patroni/patroni.yml:/venv/etc/patroni.yml
+      - ./patroni/entrypoint.sh:/usr/local/bin/entrypoint.sh
+      - pg15clu01-data:/var/lib/postgresql/data
+
+  pgsql15clu02:
+    <<: *postgres-common
+    environment:
+      <<: *postgres-envs
+      PATRONI_NAME: pgsql15clu02
+      PATRONI_SCOPE: pg15cluster
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu02:5432
+    volumes:
+      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+      - ./patroni/patroni.yml:/venv/etc/patroni.yml
+      - ./patroni/entrypoint.sh:/usr/local/bin/entrypoint.sh
+      - pg15clu02-data:/var/lib/postgresql/data
+
+  pgsql15clu03:
+    <<: *postgres-common
+    environment:
+      <<: *postgres-envs
+      PATRONI_NAME: pgsql15clu03
+      PATRONI_SCOPE: pg15cluster
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu03:5432
+    volumes:
+#      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+      - ./patroni/patroni.yml:/venv/etc/patroni.yml
+      - ./patroni/entrypoint.sh:/usr/local/bin/entrypoint.sh
+      - pg15clu03-data:/var/lib/postgresql/data
+
+volumes:
+    ivory-data:
+      driver: local
+    etcd-data:
+      driver: local
+    pg15clu01-data:
+      driver: local
+    pg15clu02-data:
+      driver: local
+    pg15clu03-data:
+      driver: local
