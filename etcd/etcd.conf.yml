@@ -1,10 +1,10 @@
 # This is the configuration file for the etcd server.
 
 # Human-readable name for this member.
-name: 'etcd0'
+name: 'etcd'
 
 # Path to the data directory.
-data-dir:
+data-dir: "/bitnami/etcd"
 
 # Path to the dedicated wal directory.
 wal-dir:
@@ -23,10 +23,10 @@ election-timeout: 1000
 quota-backend-bytes: 0
 
 # List of comma separated URLs to listen on for peer traffic.
-listen-peer-urls: http://localhost:2380
+listen-peer-urls: http://0.0.0.0:2380
 
 # List of comma separated URLs to listen on for client traffic.
-listen-client-urls: http://localhost:2379
+listen-client-urls: http://0.0.0.0:2379
 
 # Maximum number of snapshot files to retain (0 is unlimited).
 max-snapshots: 5
@@ -39,11 +39,11 @@ cors:
 
 # List of this member's peer URLs to advertise to the rest of the cluster.
 # The URLs needed to be a comma-separated list.
-initial-advertise-peer-urls: http://localhost:2380
+initial-advertise-peer-urls: http://etcd:2380
 
 # List of this member's client URLs to advertise to the public.
 # The URLs needed to be a comma-separated list.
-advertise-client-urls: http://localhost:2379
+advertise-client-urls: http://etcd:2379
 
 # Discovery URL used to bootstrap the cluster.
 discovery:
@@ -67,10 +67,10 @@ initial-cluster-token: 'etcd-cluster'
 initial-cluster-state: 'new'
 
 # Reject reconfiguration requests that would cause quorum loss.
-strict-reconfig-check: false
+strict-reconfig-check: true
 
 # Accept etcd V2 client requests
-enable-v2: true
+enable-v2: false
 
 # Enable runtime profiling data via HTTP server
 enable-pprof: true
@@ -137,4 +137,5 @@ log-outputs: [stderr]
 force-new-cluster: false
 
 auto-compaction-mode: periodic
-auto-compaction-retention: "1"
+
+auto-compaction-retention: "5"

@@ -1,7 +1,4 @@
-scope: ${PATRONI_SCOPE}
-#namespace: /pg15_cluster/
-name: ${PATRONI_NAME}
-
+---
 log:
   format: '%(asctime)s %(levelname)s: %(message)s'
   level: ERROR
@@ -17,9 +14,10 @@ restapi:
     password: ${PATRONI_HTTP_PASSWORD}
 
 etcd3:
-  host: etcd0:2379
+  hosts: etcd:2379
 
 bootstrap:
+  post_bootstrap: /usr/local/bin/create_users.sh
   dcs:
     loop_wait: 10
     retry_timeout: 10
@@ -28,9 +26,9 @@ bootstrap:
       use_pg_rewind: true
       use_slots: true
       parameters:
-        ssl: off
+        ssl: 'off'
         hot_standby: 'on'
-        max_connections: 100
+        max_connections: 500
         shared_buffers: 2G
         effective_cache_size: 6G
         work_mem: 128MB
@@ -42,11 +40,11 @@ bootstrap:
         pg_stat_statements.track: 'all'
         max_locks_per_transaction: 64
         max_prepared_transactions: 0
-        max_replication_slots: 10
-        max_wal_senders: 10
+        max_replication_slots: 20
+        max_wal_senders: 20
         max_worker_processes: 8
         track_commit_timestamp: 'off'
-        wal_keep_size: 128MB
+        wal_keep_size: 1GB
         wal_level: logical
         wal_log_hints: 'on'
   initdb:
@@ -57,11 +55,11 @@ bootstrap:
 postgresql:
   authentication:
     replication:
-      password: replicator
-      username: replicator
+      password: edw_repl_user
+      username: edw_repl_user
     superuser:
-      password: edw_admin_user
-      username: edw_admin_user
+      password: postgres
+      username: postgres
   bin_dir: ''
   connect_address: ${PATRONI_POSTGRESQL_CONNECT_ADDRESS}
   data_dir: /var/lib/postgresql/data
@@ -69,9 +67,16 @@ postgresql:
   parameters:
     password_encryption: scram-sha-256
   pg_hba:
-    - local   all             all                                 scram-sha-256
-    - host    all             all             all                 scram-sha-256
-    - host    replication     replicator      all                 scram-sha-256
+    - local   all             all                                   scram-sha-256
+    - host    all             all               0.0.0.0/0           scram-sha-256
+    - host    all             all               ::0/0               scram-sha-256
+    - host    all             postgres          0.0.0.0/0           scram-sha-256
+    - host    all             postgres          ::0/0               scram-sha-256
+    - host    replication     edw_repl_user     0.0.0.0/0           scram-sha-256
+    - host    replication     edw_repl_user     ::0/0               scram-sha-256
+
+users_management:
+  enable: true
 
 watchdog:
   mode: automatic
@@ -82,4 +87,4 @@ tags:
   clonefrom: true
   noloadbalance: false
   nostream: false
-  nosync: false(venv)
+  nosync: false

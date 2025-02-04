@@ -4,8 +4,8 @@ set -e
 
 echo "PostgreSQL wait for Patroni to start..."
 
-POSTGRES_DB=${POSTGRES_DB:-picasso_dwh_storage}
-POSTGRES_USER=${POSTGRES_USER:-edw_admin_user}
+POSTGRES_DB='postgres'
+POSTGRES_USER='postgres'
 
 if [ ! -d "/var/lib/postgresql/data" ]; then
     echo "Initializing PostgreSQL data directory..."
@@ -28,4 +28,8 @@ else
     chmod 0700 /var/lib/postgresql/data
 fi
 
-exec gosu postgres /venv/bin/patroni /venv/etc/patroni.yml
+echo "Starting PgBouncer..."
+exec gosu postgres pgbouncer -d /etc/pgbouncer/pgbouncer.ini &
+
+echo "Starting Patroni..."
+exec gosu postgres /venv/bin/patroni /etc/patroni/patroni.yml

@@ -1,18 +1,3 @@
-x-pgbouncer-common:
-    &pgbouncer-common
-    image: bitnami/pgbouncer:1.23.1
-    ports:
-      - "6432"
-    env_file:
-      - .env
-    environment:
-      &pgbouncer-env-common
-      PGBOUNCER_AUTH_TYPE: scram-sha-256
-      POSTGRESQL_USERNAME: ${POSTGRES_USER}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRESQL_PORT: 5432
-    restart: unless-stopped
-
 x-postgres-common:
   &postgres-common
   image: picasso/pg15-patroni:develop
@@ -25,19 +10,18 @@ x-postgres-common:
     &postgres-envs
     PATRONI_ETCD3_HOSTS: ${PATRONI_ETCD3_HOSTS}
     PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
-    PATRONI_POSTGRESQL_PGPASSWORD: ${POSTGRES_PASSWORD}
     PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-    PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER}
-    PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
+    PATRONI_SCOPE: pg15cluster
+    PATRONI_NAMESPACE: ${PATRONI_SCOPE:-pg15cluster}
   entrypoint: ["/usr/local/bin/entrypoint.sh"]
   logging:
     options:
       max-size: "1m"
       max-file: "5"
   depends_on:
-    - etcd0
+    - etcd
   healthcheck:
-    test: [ "CMD", "pg_isready", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+    test: [ "CMD", "pg_isready", "-d", "postgres", "-U", "postgres" ]
     interval: 5s
     timeout: 5s
     retries: 5
@@ -66,18 +50,22 @@ x-etcd-common:
     - "2380"
 
 services:
-  etcd0:
+  etcd:
     <<: *etcd-common
+    hostname: etcd
+    container_name: etcd
     environment:
       <<: *etcd-envs
-      ETCD_NAME: etcd0
-      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd0:2380
-      ETCD_ADVERTISE_CLIENT_URLS: http://etcd0:2379
+      ETCD_NAME: etcd
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd:2380
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
     volumes:
         - etcd-data:/bitnami/etcd
 
   haproxy:
     image: haproxy:3.0.5-alpine3.20
+    hostname: haproxy
+    container_name: haproxy
     env_file:
         - .env
     ports:
@@ -89,51 +77,39 @@ services:
 
   pgsql15clu01:
     <<: *postgres-common
+    container_name: postgresql-01
     environment:
       <<: *postgres-envs
       PATRONI_NAME: pgsql15clu01
-      PATRONI_SCOPE: pg15cluster
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu01:5432
     volumes:
-      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
-      - ./patroni/patroni.yml:/venv/etc/patroni.yml
-      - ./patroni/entrypoint.sh:/usr/local/bin/entrypoint.sh
-      - pg15clu01-data:/var/lib/postgresql/data
+      - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
 
   pgsql15clu02:
     <<: *postgres-common
+    container_name: postgresql-02
     environment:
       <<: *postgres-envs
       PATRONI_NAME: pgsql15clu02
-      PATRONI_SCOPE: pg15cluster
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu02:5432
     volumes:
-      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
-      - ./patroni/patroni.yml:/venv/etc/patroni.yml
-      - ./patroni/entrypoint.sh:/usr/local/bin/entrypoint.sh
-      - pg15clu02-data:/var/lib/postgresql/data
+      - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
 
   pgsql15clu03:
     <<: *postgres-common
+    container_name: postgresql-03
     environment:
       <<: *postgres-envs
       PATRONI_NAME: pgsql15clu03
-      PATRONI_SCOPE: pg15cluster
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu03:5432
     volumes:
-#      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
-      - ./patroni/patroni.yml:/venv/etc/patroni.yml
-      - ./patroni/entrypoint.sh:/usr/local/bin/entrypoint.sh
-      - pg15clu03-data:/var/lib/postgresql/data
-
+      - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
 volumes:
-    ivory-data:
-      driver: local
     etcd-data:
-      driver: local
-    pg15clu01-data:
-      driver: local
-    pg15clu02-data:
-      driver: local
-    pg15clu03-data:
       driver: local
