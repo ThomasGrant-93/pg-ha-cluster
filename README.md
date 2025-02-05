@@ -1,136 +1,161 @@
 # Кластер PostgreSQL с Patroni, etcd и HAProxy
 
-Проект настраивает кластер PostgreSQL с высокой доступностью, используя Patroni для автоматического переключения узлов, etcd в качестве распределенного хранилища, и HAProxy для балансировки нагрузки между узлами кластера.
+Проект настраивает кластер PostgreSQL с высокой доступностью, используя Patroni для автоматического переключения узлов,
+etcd в качестве распределенного хранилища, и HAProxy для балансировки нагрузки между узлами кластера.
 
 ## Описание проекта
 
 Кластер PostgreSQL включает следующие компоненты:
+
 - **Patroni**: Управляет экземплярами PostgreSQL и автоматизирует переключение узлов в случае отказа.
 - **etcd**: Обеспечивает распределенный консенсус и хранит состояние кластера для Patroni.
 - **HAProxy**: Направляет трафик на соответствующий ведущий узел для операций записи и на реплики для операций чтения.
-- **PostgreSQL**: Движок базы данных, настроенный на высокую доступность с репликацией, переключением узлов и резервным копированием.
+- **PostgreSQL**: Движок базы данных, настроенный на высокую доступность с репликацией, переключением узлов и резервным
+  копированием.
 
-### Краткое руководство по запуску
+## Краткое руководство по запуску
 
-1. **Клонируйте репозиторий**:
+### 1. Клонирование репозитория
 
-    ```bash
-    git clone <repository-url>
-    cd <repository-folder>
-    ```
+### 2. Настройка переменных окружения
 
-2. **Настройте переменные окружения**:
+Создайте файл `.env` в корневой папке проекта со следующими переменными:
 
-    Создайте файл `.env` в корневой папке проекта со следующими переменными:
+```bash
+PGBOUNCER_AUTH_TYPE='scram-sha-256'
+PATRONI_ETCD3_HOSTS='etcd:2379'
+PATRONI_HTTP_ADMIN='admin'
+PATRONI_HTTP_PASSWORD='admin'
+PATRONI_SUPERUSER_USERNAME='postgres'
+PATRONI_SUPERUSER_PASSWORD='postgres'
+PATRONI_POSTGRESQL_DATA_DIR='/var/lib/postgresql/data'
+PATRONI_POSTGRESQL_LISTEN='0.0.0.0:5432'
+ETCD_INITIAL_CLUSTER='etcd=http://etcd:2380'
+ALLOW_NONE_AUTHENTICATION='yes'
+ETCD_LISTEN_PEER_URLS='http://0.0.0.0:2380'
+ETCD_LISTEN_CLIENT_URLS='http://0.0.0.0:2379'
+ETCD_INITIAL_CLUSTER_TOKEN='etcd-cluster'
+ETCD_INITIAL_CLUSTER_STATE='new'
+```
 
-    ```bash
-    POSTGRES_USER='edw_admin_user'
-    POSTGRES_PASSWORD='edw_admin_user'
-    POSTGRES_DB='picasso_dwh_storage'
-    REPL_POSTGRES_USER='replicator'
-    REPL_POSTGRES_PASSWORD='replicator'
-    PATRONI_ETCD3_HOSTS='etcd0:2379'
-    PATRONI_HTTP_ADMIN='admin'
-    PATRONI_HTTP_PASSWORD='admin'
-    ETCD_INITIAL_CLUSTER='etcd0=http://etcd0:2380'
-    ```
+Настройте переменные в соответствии с вашей средой.
 
-    Настройте переменные в соответствии с вашей средой.
+### 3. Сборка и запуск сервисов
 
-3. **Соберите и запустите сервисы**:
+Соберите контейнер Patroni:
 
-    Выполните следующую команду для запуска всех сервисов с использованием Docker Compose:
+```bash
+docker build . -f Dockerfile --pull --tag picasso/pg15-patroni:develop
+```
 
-    ```bash
-    docker build . -f Dockerfile --pull --tag picasso/pg15-patroni:develop
-    ```
+Запустите кластер:
 
-    Эта команда соберет контейнеры Patroni, после чего можно запускать кластер:
+```bash
+docker-compose up -d
+```
 
-    ```bash
-    docker-compose up -d
-    ```
-    Эта команда запустит узлы etcd, HAProxy и PostgreSQL.
+Эта команда запустит узлы etcd, HAProxy и PostgreSQL.
 
-4. **Доступ к статистике HAProxy**:
+### 4. Доступ к статистике HAProxy
 
-    HAProxy предоставляет страницу статистики на порту `8404`. Вы можете получить к ней доступ, перейдя по адресу `http://localhost:8404/stats` в браузере.
+HAProxy предоставляет страницу статистики на порту `8404`. Вы можете получить к ней доступ, перейдя по адресу
+`http://localhost:8404/stats` в браузере.
 
-    Стандартные учетные данные:
-    - Имя пользователя: `admin`
-    - Пароль: `admin`
+**Стандартные учетные данные:**
 
-5. **Подключение к PostgreSQL**:
+- Имя пользователя: `admin`
+- Пароль: `admin`
 
-    После запуска сервисов можно подключиться к ведущему узлу PostgreSQL через HAProxy (порт `6432`):
+### 5. Подключение к PostgreSQL
 
-    ```bash
-    psql -h localhost -p 6432 -d postgres -U edw_admin_user -W
-    ```
+После запуска сервисов можно подключиться к ведущему узлу PostgreSQL через HAProxy (порт `6432`):
 
-    Для запросов только на чтение используйте порт `6433` (HAProxy будет балансировать между репликами).
+```bash
+psql -h localhost -p 6432 -d postgres -U edw_admin_user -W
+```
 
-## **Сервисы и конфигурация**
+Для запросов только на чтение используйте порт `6433` (HAProxy будет балансировать между репликами).
 
-### **Конфигурация Patroni**
+## Сервисы и конфигурация
 
-Patroni настроен для управления кластером PostgreSQL. Ключевые компоненты в `patroni.yml`:
+### Конфигурация Patroni
+
+Patroni управляет кластером PostgreSQL. Ключевые компоненты в `patroni.yml`:
 
 - **etcd**: Обеспечивает распределенное хранилище для состояния кластера.
 - **Параметры PostgreSQL**:
-  - **max_connections**: 100
-  - **wal_level**: logical
-  - **max_replication_slots**: 5
-  - **shared_buffers**: 2GB
+    - **max_connections**: 100
+    - **wal_level**: logical
+    - **max_replication_slots**: 5
+    - **shared_buffers**: 2GB
 
-Полная конфигурация указана в файле `patroni.yml`.
+### etcd
 
-### **etcd**
-
-Сервис etcd используется для распределенного консенсуса. Каждый узел PostgreSQL взаимодействует с etcd для определения состояния кластера и того, какой узел является лидером.
+Сервис etcd используется для распределенного консенсуса. Каждый узел PostgreSQL взаимодействует с etcd для определения
+состояния кластера и того, какой узел является лидером.
 
 - **Порт**: 2379 (клиентский)
 - **Порт**: 2380 (коммуникация между узлами)
 
-### **Конфигурация HAProxy**
+### Конфигурация HAProxy
 
 HAProxy используется для маршрутизации запросов чтения и записи на соответствующий узел PostgreSQL:
+
 - **Порт 6432**: Направляет трафик на запись на лидера.
 - **Порт 6433**: Направляет трафик на чтение на одну из реплик.
 
-### **Структура Docker Compose**
+### Структура Docker Compose
 
 - `pgsql15clu01`, `pgsql15clu02`, `pgsql15clu03`: Узлы PostgreSQL, управляемые Patroni.
-- `etcd0`: etcd для координации кластера.
+- `etcd`: etcd для координации кластера.
 - `haproxy`: Балансировщик нагрузки для PostgreSQL.
 
-## **Томa**
+## Управление кластером
 
-Проект использует Docker-тома для сохранения данных:
+### Просмотр состояния кластера
 
-- **Тома для данных PostgreSQL**:
-  - `pg15clu01-data`
-  - `pg15clu02-data`
-  - `pg15clu03-data`
+```bash
+./bin/patronictl list
+```
 
-- **Том для данных etcd**:
-  - `etcd-data`
+### Переключение лидера вручную
 
-## **Частые проблемы**
+```bash
+./bin/patronictl switchover --leader <node-name> --candidate <node-name> --force
+```
 
-- **Ошибка "no pg_hba.conf entry"**:
-  Убедитесь, что в настройках `pg_hba.conf` в файле `patroni.yml` разрешены подключения от всех необходимых хостов, включая диапазоны IP-адресов внутри Docker.
+### Валидация конфигурации Patroni
 
-- **Не удается подключиться к PostgreSQL**:
-  Проверьте логи контейнеров PostgreSQL с помощью команды:
+```bash
+./bin/patroni --validate-config /etc/patroni/patroni.yml
+```
 
-  ```bash
-  docker-compose logs -f --tail 500
-  ```
+### Просмотр логов
 
-- **Ошибка выбора лидера**:
-  Убедитесь, что etcd запущен и доступен для всех узлов Patroni. Вы также можете проверить логи контейнера etcd:
+```bash
+tail -f /var/log/patroni/patroni.log -n 1000
+tail -f /var/log/pgbouncer.log -n 1000
+```
 
-  ```bash
-  docker-compose logs -f etcd0
-  ```
+## Частые проблемы
+
+### Ошибка "no pg_hba.conf entry"
+
+Убедитесь, что в настройках `pg_hba.conf` в файле `patroni.yml` разрешены подключения от всех необходимых хостов,
+включая диапазоны IP-адресов внутри Docker.
+
+### Не удается подключиться к PostgreSQL
+
+Проверьте логи контейнеров PostgreSQL:
+
+```bash
+docker-compose logs -f --tail 500
+```
+
+### Ошибка выбора лидера
+
+Проверьте, что etcd запущен и доступен для всех узлов Patroni. Вы также можете проверить логи контейнера etcd:
+
+```bash
+docker-compose logs -f etcd
+```
