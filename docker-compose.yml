@@ -9,10 +9,8 @@ x-postgres-common:
   environment:
     &postgres-envs
     PATRONI_ETCD3_HOSTS: ${PATRONI_ETCD3_HOSTS}
-    PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data
-    PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
     PATRONI_SCOPE: pg15cluster
-    PATRONI_NAMESPACE: ${PATRONI_SCOPE:-pg15cluster}
+    PATRONI_NAMESPACE: /${PATRONI_SCOPE:-pg15cluster}
   entrypoint: ["/usr/local/bin/entrypoint.sh"]
   logging:
     options:
@@ -77,11 +75,15 @@ services:
 
   pgsql15clu01:
     <<: *postgres-common
+    hostname: pgsql15clu01
     container_name: postgresql-01
     environment:
       <<: *postgres-envs
       PATRONI_NAME: pgsql15clu01
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu01:5432
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-01:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-01:5432
     volumes:
       - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
@@ -90,10 +92,14 @@ services:
   pgsql15clu02:
     <<: *postgres-common
     container_name: postgresql-02
+    hostname: pgsql15clu02
     environment:
       <<: *postgres-envs
       PATRONI_NAME: pgsql15clu02
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu02:5432
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-02:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-02:5432
     volumes:
       - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
@@ -102,10 +108,14 @@ services:
   pgsql15clu03:
     <<: *postgres-common
     container_name: postgresql-03
+    hostname: pgsql15clu03
     environment:
       <<: *postgres-envs
       PATRONI_NAME: pgsql15clu03
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15clu03:5432
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-03:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-03:5432
     volumes:
       - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro

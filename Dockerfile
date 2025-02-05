@@ -23,6 +23,10 @@ COPY ./patroni/patroni.yml /etc/patroni/patroni.yml
 COPY ./pgbouncer/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
 COPY ./pgbouncer/userlist.txt /etc/pgbouncer/userlist.txt
 
+RUN mkdir -p /var/log/patroni && \
+    chown postgres:postgres /var/log/patroni && \
+    chmod 755 /var/log/patroni
+
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/create_users.sh && \
     touch /var/log/pgbouncer.log && \
     chown postgres:postgres /var/log/pgbouncer.log && \

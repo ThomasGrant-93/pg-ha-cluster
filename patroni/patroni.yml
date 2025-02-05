@@ -1,17 +1,13 @@
 ---
 log:
   format: '%(asctime)s %(levelname)s: %(message)s'
-  level: ERROR
+  level: INFO
+  trace_level: DEBUG
+  dir: /var/log/patroni
+  file_size: 10000000
+  file_num: 5
   max_queue_size: 1000
-  traceback_level: ERROR
   type: plain
-
-restapi:
-  listen: 0.0.0.0:8008
-  connect_address: ${PATRONI_NAME}:8008
-  authentication:
-    username: ${PATRONI_HTTP_ADMIN}
-    password: ${PATRONI_HTTP_PASSWORD}
 
 etcd3:
   hosts: etcd:2379
@@ -47,6 +43,9 @@ bootstrap:
         wal_keep_size: 1GB
         wal_level: logical
         wal_log_hints: 'on'
+        password_encryption: scram-sha-256
+        synchronous_commit: "on"
+        synchronous_standby_names: "*"
   initdb:
     - encoding: UTF8
     - locale: en_US.UTF-8
@@ -54,18 +53,19 @@ bootstrap:
 
 postgresql:
   authentication:
+    rewind:
+      password: rewind
+      username: rewind
     replication:
       password: edw_repl_user
       username: edw_repl_user
     superuser:
       password: postgres
       username: postgres
-  bin_dir: ''
-  connect_address: ${PATRONI_POSTGRESQL_CONNECT_ADDRESS}
   data_dir: /var/lib/postgresql/data
-  listen: 0.0.0.0:5432
-  parameters:
-    password_encryption: scram-sha-256
+  use_pg_rewind: true
+  create_replica_methods:
+    - basebackup
   pg_hba:
     - local   all             all                                   scram-sha-256
     - host    all             all               0.0.0.0/0           scram-sha-256
@@ -84,7 +84,6 @@ watchdog:
   safety_margin: 5
 
 tags:
-  clonefrom: true
   noloadbalance: false
   nostream: false
   nosync: false
