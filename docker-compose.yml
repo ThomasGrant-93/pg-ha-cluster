@@ -61,27 +61,29 @@ services:
         - etcd-data:/bitnami/etcd
 
   haproxy:
-    image: haproxy:3.0.5-alpine3.20
+    image: haproxy:3.1-alpine3.20
     hostname: haproxy
     container_name: haproxy
     env_file:
         - .env
     ports:
+      - "8008:8008"
+      - "8001-8003:8001-8003"
       - "8404:8404"
       - "6432:6432"
       - "6433:6433"
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
-  pgsql15clu01:
+  pgsql15node01:
     <<: *postgres-common
-    hostname: pgsql15clu01
+    hostname: pgsql15node01
     container_name: postgresql-01
     environment:
       <<: *postgres-envs
-      PATRONI_NAME: pgsql15clu01
-      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
-      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-01:8008
+      PATRONI_NAME: pgsql15node01
+      PATRONI_RESTAPI_LISTEN: postgresql-01:8001
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-01:8001
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-01:5432
     volumes:
@@ -89,15 +91,15 @@ services:
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
       - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
 
-  pgsql15clu02:
+  pgsql15node02:
     <<: *postgres-common
     container_name: postgresql-02
-    hostname: pgsql15clu02
+    hostname: pgsql15node02
     environment:
       <<: *postgres-envs
-      PATRONI_NAME: pgsql15clu02
-      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
-      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-02:8008
+      PATRONI_NAME: pgsql15node02
+      PATRONI_RESTAPI_LISTEN: postgresql-02:8002
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-02:8002
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-02:5432
     volumes:
@@ -105,21 +107,22 @@ services:
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
       - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
 
-  pgsql15clu03:
+  pgsql15node03:
     <<: *postgres-common
     container_name: postgresql-03
-    hostname: pgsql15clu03
+    hostname: pgsql15node03
     environment:
       <<: *postgres-envs
-      PATRONI_NAME: pgsql15clu03
-      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
-      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-03:8008
+      PATRONI_NAME: pgsql15node03
+      PATRONI_RESTAPI_LISTEN: postgresql-03:8003
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-03:8003
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-03:5432
     volumes:
       - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
       - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+
 volumes:
     etcd-data:
       driver: local

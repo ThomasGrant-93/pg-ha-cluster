@@ -106,7 +106,7 @@ HAProxy используется для маршрутизации запрос�
 
 ### Структура Docker Compose
 
-- `pgsql15clu01`, `pgsql15clu02`, `pgsql15clu03`: Узлы PostgreSQL, управляемые Patroni.
+- `pgsql15node01`, `pgsql15node02`, `pgsql15node03`: Узлы PostgreSQL, управляемые Patroni.
 - `etcd`: etcd для координации кластера.
 - `haproxy`: Балансировщик нагрузки для PostgreSQL.
 
@@ -121,7 +121,7 @@ HAProxy используется для маршрутизации запрос�
 ### Переключение лидера вручную
 
 ```bash
-./bin/patronictl switchover --leader <node-name> --candidate <node-name> --force
+./bin/patronictl switchover --leader <member-name> --candidate <member-name> --force
 ```
 
 ### Валидация конфигурации Patroni
