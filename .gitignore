@@ -9,9 +9,13 @@
 
 # Allow only these directories
 !docker-entrypoint-initdb.d/**
+!barman/**
+!docker/**
 !etcd/**
 !haproxy/**
 !patroni/**
+!ssh-keys/**
+!ssl-keys/**
 
 # Allow only these files
 !.env.example
@@ -19,5 +23,5 @@
 !.dockerignore
 !.gitignore
 !docker-compose.yml
-!Dockerfile
 !README.md
+!**/.gitkeep

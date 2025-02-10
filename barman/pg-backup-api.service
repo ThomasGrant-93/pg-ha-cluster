@@ -1,0 +1,13 @@
+[Unit]
+Description=Postgres Backup API
+
+[Service]
+Type=simple
+User=barman
+Group=barman
+ExecStart=/usr/bin/gunicorn -c /etc/pg-backup-api-config.py pg_backup_api.app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

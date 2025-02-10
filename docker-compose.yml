@@ -6,6 +6,13 @@ x-postgres-common:
   ports:
     - "5432"
     - "8008"
+    - "22"
+  volumes:
+    - ./barman/barman.conf:/etc/barman.conf
+    - ./barman/pg.conf:/etc/barman.d/pg.conf
+    - ./patroni/patroni.yml:/etc/patroni/patroni.yml
+    - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+    - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
   environment:
     &postgres-envs
     PATRONI_ETCD3_HOSTS: ${PATRONI_ETCD3_HOSTS}
@@ -18,12 +25,13 @@ x-postgres-common:
       max-file: "5"
   depends_on:
     - etcd
+    - backup-api
   healthcheck:
     test: [ "CMD", "pg_isready", "-d", "postgres", "-U", "postgres" ]
     interval: 5s
     timeout: 5s
     retries: 5
-  restart: on-failure
+  restart: unless-stopped
 
 x-etcd-common:
   &etcd-common
@@ -73,7 +81,14 @@ services:
       - "6432:6432"
       - "6433:6433"
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    healthcheck:
+      test: ["CMD", "pidof", "haproxy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: on-failure
 
   pgsql15node01:
     <<: *postgres-common
@@ -85,11 +100,7 @@ services:
       PATRONI_RESTAPI_LISTEN: postgresql-01:8001
       PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-01:8001
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-01:5432
-    volumes:
-      - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15node01:5432
 
   pgsql15node02:
     <<: *postgres-common
@@ -101,11 +112,7 @@ services:
       PATRONI_RESTAPI_LISTEN: postgresql-02:8002
       PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-02:8002
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-02:5432
-    volumes:
-      - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15node02:5432
 
   pgsql15node03:
     <<: *postgres-common
@@ -117,11 +124,24 @@ services:
       PATRONI_RESTAPI_LISTEN: postgresql-03:8003
       PATRONI_RESTAPI_CONNECT_ADDRESS: postgresql-03:8003
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgresql-03:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pgsql15node03:5432
+
+  backup-api:
+    image: picasso/pg15-backup-api:develop
+    container_name: backup-api
+    hostname: backup-api
+    ports:
+      - "22"
+      - "7480:7480"
     volumes:
-      - ./patroni/patroni.yml:/venv/etc/patroni.yml:ro
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      - ./barman/pg-backup-api-config.py:/etc/pg-backup-api-config.py
+    healthcheck:
+      test: [ "CMD", "curl", "--silent", "--fail", "http://localhost:7480/status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
 
 volumes:
     etcd-data:

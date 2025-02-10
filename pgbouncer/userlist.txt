@@ -1,5 +1,6 @@
 "pgbouncer" "pgbouncer"
 "postgres" "postgres"
+"barman" "barman"
 "edw_admin_user" "edw_admin_user"
 "edw_repl_user" "edw_repl_user"
 "edw_airflow_user" "edw_airflow_user"

@@ -45,7 +45,7 @@ ETCD_INITIAL_CLUSTER_STATE='new'
 Соберите контейнер Patroni:
 
 ```bash
-docker build . -f Dockerfile --pull --tag picasso/pg15-patroni:develop
+docker build . -f pgsql.Dockerfile --pull --tag picasso/pg15-patroni:develop
 ```
 
 Запустите кластер:
