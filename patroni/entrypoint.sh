@@ -2,15 +2,26 @@
 
 set -e
 
-echo "PostgreSQL wait for Patroni to start..."
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
 
-echo "Starting sshd..."
+log "Starting entrypoint.sh"
+
+log "Checking SSH key permissions for postgres"
+
+chmod 0700  /var/lib/postgresql/.ssh
+chmod 0600  /var/lib/postgresql/.ssh/id_rsa
+chmod 0600  /var/lib/postgresql/.ssh/id_rsa.pub
+chmod 0600  /var/lib/postgresql/.ssh/authorized_keys
+
+log "PostgreSQL wait for Patroni to start..."
+
+log "Starting SSH server..."
 /usr/sbin/sshd -D &
-echo "SSH running..."
 
-echo "Starting PgBouncer..."
+log "Starting PgBouncer..."
 gosu postgres pgbouncer -d /etc/pgbouncer/pgbouncer.ini &
-echo "PgBouncer running..."
 
-echo "Starting Patroni..."
+log "Starting Patroni..."
 exec gosu postgres /venv/bin/patroni /etc/patroni/patroni.yml

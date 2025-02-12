@@ -15,3 +15,8 @@ psql "${PATRONI_SUPERUSER_URL}" <<-EOSQL
 EOSQL
 
 echo "Users created successfully."
+
+echo "Change permissions for /var/lib/postgresql/data/pg_wal recursive"
+
+chmod 0750 /var/lib/postgresql/data
+chmod 0750 /var/lib/postgresql/data/pg_wal

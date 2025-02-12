@@ -1,7 +1,7 @@
 ---
 log:
   format: '%(asctime)s %(levelname)s: %(message)s'
-  level: INFO
+  level: DEBUG
   trace_level: DEBUG
   dir: /var/log/patroni
   file_size: 10000000
@@ -13,7 +13,7 @@ etcd3:
   hosts: etcd:2379
 
 bootstrap:
-  post_bootstrap: /usr/local/bin/create_users.sh
+  post_bootstrap: /usr/local/bin/setup.sh
   dcs:
     ttl: 30
     loop_wait: 10
@@ -50,22 +50,12 @@ bootstrap:
         password_encryption: scram-sha-256
         synchronous_commit: 'on'
         synchronous_standby_names: '*'
-      recovery_conf:
-        restore_command: 'barman-wal-restore backup-api "$HOSTNAME" /var/lib/postgresql/data/pg_wal/%f %p'
-      callbacks:
-        on_start: |
-          chmod 0750 /var/lib/postgresql/data && \
-          chmod 0750 /var/lib/postgresql/data/pg_wal
-        on_role_change: '/venv/bin/patroni_barman --api-url http://backup-api:7480 config-switch --barman-server backup-api --barman-model ${HOSTNAME} --switch-when promoted'
   initdb:
     - encoding: UTF8
     - locale: en_US.UTF-8
     - data-checksums
 
 postgresql:
-  pgpass: /tmp/pgpass
-  data_dir: /var/lib/postgresql/data
-  bin_dir: /usr/lib/postgresql/15/bin
   authentication:
     rewind:
       password: rewind
@@ -74,28 +64,26 @@ postgresql:
       password: barman
       username: barman
     superuser:
-      password: postgres
       username: postgres
+      password: postgres
   create_replica_methods:
-    - barman
     - basebackup
-  #  barman:
-  #    command: /venv/bin/patroni_barman --api-url http://backup-api:7480 recover
-  #    barman-server: backup-api
-  #    ssh-command: ssh barman@${HOSTNAME}
-  basebackup:
-    max-rate: '100M'
-    checkpoint: fast
+  data_dir: /var/lib/postgresql/data
+  bin_dir: /usr/lib/postgresql/15/bin
+  pgpass: /tmp/pgpass
   pg_hba:
     - local   all             all                                   trust
     - host    all             all               0.0.0.0/0           scram-sha-256
     - host    all             all               ::0/0               scram-sha-256
     - host    all             postgres          0.0.0.0/0           scram-sha-256
     - host    all             postgres          ::0/0               scram-sha-256
-    #    - host    replication     edw_repl_user     0.0.0.0/0           scram-sha-256
-    #    - host    replication     edw_repl_user     ::0/0               scram-sha-256
+    - host    replication     edw_repl_user     0.0.0.0/0           scram-sha-256
+    - host    replication     edw_repl_user     ::0/0               scram-sha-256
     - host    replication     barman            0.0.0.0/0           scram-sha-256
     - host    replication     barman            ::0/0               scram-sha-256
+  basebackup:
+    max-rate: '100M'
+    checkpoint: fast
 
 watchdog:
   mode: automatic

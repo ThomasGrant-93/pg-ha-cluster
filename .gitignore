@@ -1,27 +1,9 @@
-# NOTE! This Git ignore uses recommended technique
-# Where everything is excluded by default and you deliberately
-# Add only those directories/files you need. This is very useful
-# To make sure that Git context is always the same on any machine
-# So that generated files are not accidentally added to the context
-
-# Ignore everything
-**
-
-# Allow only these directories
-!docker-entrypoint-initdb.d/**
-!barman/**
-!docker/**
-!etcd/**
-!haproxy/**
-!patroni/**
-!ssh-keys/**
-!ssl-keys/**
-
-# Allow only these files
-!.env.example
-!.editorconfig
-!.dockerignore
-!.gitignore
-!docker-compose.yml
-!README.md
-!**/.gitkeep
+.aws/config
+pgbouncer/userlist.txt
+scripts/
+id_rsa_*
+ssl-keys/server.crt
+ssl-keys/server.key
+.env
+.venv/
+venv/

@@ -9,7 +9,7 @@ x-postgres-common:
     - "22"
   volumes:
     - ./barman/barman.conf:/etc/barman.conf
-    - ./barman/pg.conf:/etc/barman.d/pg.conf
+    - ./barman/barman.d/:/etc/barman.d/
     - ./patroni/patroni.yml:/etc/patroni/patroni.yml
     - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
     - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
@@ -18,7 +18,7 @@ x-postgres-common:
     PATRONI_ETCD3_HOSTS: ${PATRONI_ETCD3_HOSTS}
     PATRONI_SCOPE: pg15cluster
     PATRONI_NAMESPACE: /${PATRONI_SCOPE:-pg15cluster}
-  entrypoint: ["/usr/local/bin/entrypoint.sh"]
+  entrypoint: [ "/usr/local/bin/entrypoint.sh" ]
   logging:
     options:
       max-size: "1m"
@@ -38,7 +38,7 @@ x-etcd-common:
   image: bitnami/etcd:3.5.16
   restart: unless-stopped
   env_file:
-      - .env
+    - .env
   logging:
     options:
       max-size: "1m"
@@ -56,6 +56,25 @@ x-etcd-common:
     - "2380"
 
 services:
+  minio:
+    image: minio/minio:latest
+    hostname: minio
+    container_name: minio
+    command: server --console-address ":9001" /data/
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+    volumes:
+      - minio-storage:/data
+    healthcheck:
+      test: [ "CMD", "curl", "--silent", "--fail", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
   etcd:
     <<: *etcd-common
     hostname: etcd
@@ -66,24 +85,25 @@ services:
       ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd:2380
       ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
     volumes:
-        - etcd-data:/bitnami/etcd
+      - etcd-data:/bitnami/etcd
 
   haproxy:
     image: haproxy:3.1-alpine3.20
     hostname: haproxy
     container_name: haproxy
     env_file:
-        - .env
+      - .env
     ports:
-      - "8008:8008"
+      - "7480:7480"
       - "8001-8003:8001-8003"
+      - "8008:8008"
       - "8404:8404"
       - "6432:6432"
       - "6433:6433"
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
     healthcheck:
-      test: ["CMD", "pidof", "haproxy"]
+      test: [ "CMD", "pidof", "haproxy" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -131,8 +151,8 @@ services:
     container_name: backup-api
     hostname: backup-api
     ports:
+      - "7480"
       - "22"
-      - "7480:7480"
     volumes:
       - ./barman/pg-backup-api-config.py:/etc/pg-backup-api-config.py
     healthcheck:
@@ -144,5 +164,7 @@ services:
     restart: always
 
 volumes:
-    etcd-data:
-      driver: local
+  minio-storage:
+    driver: local
+  etcd-data:
+    driver: local
