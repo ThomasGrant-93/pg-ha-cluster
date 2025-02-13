@@ -45,7 +45,13 @@ ETCD_INITIAL_CLUSTER_STATE='new'
 Соберите контейнер Patroni:
 
 ```bash
-docker build . -f pgsql.Dockerfile --pull --tag picasso/pg15-patroni:develop
+docker build . -f barman.Dockerfile --pull --tag picasso/pg15-patroni:develop
+```
+
+Соберите контейнер Barman:
+
+```bash
+docker build . -f node.Dockerfile --pull --tag picasso/barman:develop
 ```
 
 Запустите кластер:
@@ -115,19 +121,19 @@ HAProxy используется для маршрутизации запрос�
 ### Просмотр состояния кластера
 
 ```bash
-./bin/patronictl list
+patronictl list
 ```
 
 ### Переключение лидера вручную
 
 ```bash
-./bin/patronictl switchover --leader <member-name> --candidate <member-name> --force
+patronictl switchover --leader <member-name> --candidate <member-name> --force
 ```
 
 ### Валидация конфигурации Patroni
 
 ```bash
-./bin/patroni --validate-config /etc/patroni/patroni.yml
+patroni --validate-config /etc/patroni/patroni.yml
 ```
 
 ### Просмотр логов
