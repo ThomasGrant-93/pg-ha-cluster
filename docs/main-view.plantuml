@@ -1,0 +1,131 @@
+@startuml
+top to bottom direction
+
+skinparam rectrangle {
+    linetype ortho
+    ArrowThickness 2
+    defaultTextAlignment center
+    BackgroundColor #F9F9F9
+    BorderColor Black
+    RoundCorner 10
+}
+
+actor "Clients" as Clients
+
+node "HAProxy (10.10.10.20)" {
+    component "HAProxy (10.10.10.30:6432,6433)" as HAProxy {
+    }
+    note top of HAProxy
+      Ports:
+      - 6432 (RW)
+      - 6433 (RO)
+      - 8008 (API)
+      - 8404 (statistic)
+    end note
+}
+
+node "PostgreSQL Cluster" {
+    node "VM1 (10.10.10.30)" as VM1 {
+        database "PostgreSQL (Primary, 10.10.10.30:5432)" as PostgreSQLPrimary
+        component "Patroni (10.10.10.30:8001)" as PatroniPrimary
+        component "PgBouncer (10.10.10.30:6432)" as PgBouncerPrimary
+    }
+    note top of VM1
+      Ports:
+      - 5432 (DB)
+      - 8001 (API)
+      - 6432 (PgBouncer)
+    end note
+
+    together {
+        node "VM2 (10.10.10.31)" as VM2 {
+            database "PostgreSQL (Replica 1, 10.10.10.31:5432)" as PostgreSQLReplica1
+            component "Patroni (10.10.10.31:8002)" as PatroniReplica1
+            component "PgBouncer (10.10.10.31:6432)" as PgBouncerReplica1
+        }
+
+        node "VM3 (10.10.10.32)" as VM3 {
+            database "PostgreSQL (Replica 2, 10.10.10.32:5432)" as PostgreSQLReplica2
+            component "Patroni (10.10.10.32:8003)" as PatroniReplica2
+            component "PgBouncer (10.10.10.32:6432)" as PgBouncerReplica2
+        }
+    }
+    note top of VM2
+      Ports:
+      - 5432 (DB)
+      - 8002 (API)
+      - 6432 (PgBouncer)
+    end note
+
+    note top of VM3
+      Ports:
+      - 5432 (DB)
+      - 8002 (API)
+      - 6432 (PgBouncer)
+    end note
+}
+
+node "VM8 (10.10.10.37)" as VM8 {
+    component "barman (10.10.10.37:22)" as barman {
+        folder "/var/lib/barman/$HOSTNAME/incoming" {
+            file wal_1
+            file wal_2
+        }
+        folder "/var/lib/barman/$HOSTNAME/backups" {
+            file backup_1
+            file backup_2
+        }
+    }
+}
+
+node "etcd Cluster" as Etcd {
+    together {
+        node "VM4 (10.10.10.33)" {
+            component "etcd (10.10.10.33:2379)" as Etcd1
+        }
+        node "VM5 (10.10.10.34)" {
+            component "etcd (10.10.10.34:2379)" as Etcd2
+        }
+        node "VM6 (10.10.10.35)" {
+            component "etcd (10.10.10.35:2379)" as Etcd3
+        }
+        node "VM7 (10.10.10.36)" {
+            component "etcd (10.10.10.36:2379)" as Etcd4
+        }
+    }
+}
+
+Clients -down-> HAProxy : Connects
+HAProxy -down-> PgBouncerPrimary : Routes RW Traffic
+HAProxy -down-> PgBouncerReplica1 : Routes RO Traffic
+HAProxy -down-> PgBouncerReplica2 : Routes RO Traffic
+
+PgBouncerPrimary --> PostgreSQLPrimary : Manages Connections
+PgBouncerReplica1 --> PostgreSQLReplica1 : Manages Connections
+PgBouncerReplica2 --> PostgreSQLReplica2 : Manages Connections
+
+PostgreSQLPrimary ~~> PostgreSQLReplica1 : Replicates Data
+PostgreSQLPrimary ~~> PostgreSQLReplica2 : Replicates Data
+
+PostgreSQLPrimary <~~> PatroniPrimary : Maintenance Cluster State
+PostgreSQLReplica1 <~~> PatroniReplica1 : Maintenance Cluster State
+PostgreSQLReplica2 <~~> PatroniReplica2 : Maintenance Cluster State
+
+PatroniPrimary <-down-> Etcd3 : Provides Cluster Coordination
+PatroniReplica1 <-down-> Etcd3 : Provides Cluster Coordination
+PatroniReplica2 <-down-> Etcd3 : Provides Cluster Coordination
+
+PatroniPrimary -down-> barman : Provides Node WALs
+PatroniReplica1 -down-> barman : Provides Node WALs
+PatroniReplica2 -down-> barman : Provides Node WALs
+
+barman -down-> PostgreSQLPrimary : Provides Node Recovery
+barman -down-> PostgreSQLReplica1 : Provides Node Recovery
+barman -down-> PostgreSQLReplica2 : Provides Node Recovery
+
+Etcd1 <~left~> Etcd2 : Sync
+Etcd3 <~right~> Etcd4 : Sync
+Etcd2 <~down~> Etcd4 : Sync
+Etcd1 <~down~> Etcd3 : Sync
+
+@enduml

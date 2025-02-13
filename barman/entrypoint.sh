@@ -1,35 +1,29 @@
 #!/bin/bash
 
-set -e
+echo "Setting ownership/permissions on ${BARMAN_DATA_DIR} and ${BARMAN_LOG_DIR}"
 
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
+install -d -m 0700 -o barman -g barman "${BARMAN_DATA_DIR}"
+install -d -m 0755 -o barman -g barman "${BARMAN_LOG_DIR}"
 
-log "Starting entrypoint.sh"
+echo "Generating cron schedules"
+crontab -l -u barman | tee /tmp/barman_cron
+echo "${BARMAN_CRON_SCHEDULE} /usr/bin/barman cron" >> /tmp/barman_cron
+echo "${BARMAN_BACKUP_SCHEDULE} /usr/bin/barman backup all" >> /tmp/barman_cron
+crontab -u barman /tmp/barman_cron
+rm /tmp/barman_cron
 
-log "Checking SSH key permissions for barman"
-
-chmod 700 /var/lib/barman/.ssh
-chmod 600 /var/lib/barman/.ssh/id_rsa
-chmod 600 /var/lib/barman/.ssh/id_rsa.pub
-chmod 600 /var/lib/barman/.ssh/authorized_keys
-
-log "Verifying SSH connectivity (barman → postgres)"
-if ssh -o StrictHostKeyChecking=no postgres@pgsql15node01 'echo SSH OK'; then
-    log "Successful SSH connection to localhost"
-else
-    log "SSH connection to localhost failed"
+if [[ -f /var/lib/barman/.ssh/id_rsa ]]; then
+    echo "Setting up Barman private key"
+    chmod 700 /var/lib/barman/.ssh
+    chmod 600 -R /var/lib/barman/.ssh/*
+    chown barman:barman -R /var/lib/barman/.ssh
 fi
 
-log "Starting SSH server..."
-/usr/sbin/sshd &
+echo "Initializing done"
 
-log "Checking SSL certificates"
-if [ ! -f /home/barman/certs/server.crt ] || [ ! -f /home/barman/certs/server.key ]; then
-    log "Missing SSL certificates. Exiting."
-    exit 1
-fi
+exec /usr/sbin/sshd &
+exec /usr/local/bin/barman-exporter -l "${BARMAN_EXPORTER_LISTEN_ADDRESS}":"${BARMAN_EXPORTER_LISTEN_PORT}" -c "${BARMAN_EXPORTER_CACHE_TIME}" &
 
-log "Starting pg-backup-api with Gunicorn..."
-exec /home/barman/app/venv/bin/gunicorn -c /etc/pg-backup-api-config.py pg_backup_api.app
+echo "Started Barman exporter on ${BARMAN_EXPORTER_LISTEN_ADDRESS}:${BARMAN_EXPORTER_LISTEN_PORT}"
+
+exec "$@"

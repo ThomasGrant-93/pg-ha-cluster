@@ -24,4 +24,4 @@ log "Starting PgBouncer..."
 gosu postgres pgbouncer -d /etc/pgbouncer/pgbouncer.ini &
 
 log "Starting Patroni..."
-exec gosu postgres /venv/bin/patroni /etc/patroni/patroni.yml
+exec gosu postgres patroni /etc/patroni/patroni.yml

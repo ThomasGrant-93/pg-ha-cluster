@@ -1,7 +1,7 @@
 ---
 log:
   format: '%(asctime)s %(levelname)s: %(message)s'
-  level: DEBUG
+  level: INFO
   trace_level: DEBUG
   dir: /var/log/patroni
   file_size: 10000000
@@ -44,12 +44,14 @@ bootstrap:
         wal_keep_size: 1GB
         wal_level: logical
         archive_mode: 'on'
-        archive_command: 'barman-wal-archive backup-api "$HOSTNAME" /var/lib/postgresql/data/%p'
+        archive_command: 'barman-wal-archive barman "$HOSTNAME" %p'
         wal_max_senders: 10
         wal_log_hints: 'on'
         password_encryption: scram-sha-256
         synchronous_commit: 'on'
         synchronous_standby_names: '*'
+      recovery_conf:
+        restore_command: 'barman-wal-restore barman "$HOSTNAME" %f %p'
   initdb:
     - encoding: UTF8
     - locale: en_US.UTF-8
@@ -61,8 +63,8 @@ postgresql:
       password: rewind
       username: rewind
     replication:
-      password: barman
-      username: barman
+      password: edw_repl_user
+      username: edw_repl_user
     superuser:
       username: postgres
       password: postgres
@@ -70,7 +72,6 @@ postgresql:
     - basebackup
   data_dir: /var/lib/postgresql/data
   bin_dir: /usr/lib/postgresql/15/bin
-  pgpass: /tmp/pgpass
   pg_hba:
     - local   all             all                                   trust
     - host    all             all               0.0.0.0/0           scram-sha-256

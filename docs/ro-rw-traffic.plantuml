@@ -1,0 +1,71 @@
+@startuml
+top to bottom direction
+
+skinparam rectrangle {
+    linetype ortho
+    ArrowThickness 2
+    defaultTextAlignment center
+    BackgroundColor #F9F9F9
+    BorderColor Black
+    RoundCorner 10
+}
+
+actor "Clients" as Clients
+
+node "HAProxy (10.10.10.20)" {
+    component "HAProxy (10.10.10.30:6432,6433)" as HAProxy {
+    }
+    note top of HAProxy
+      Ports:
+      - 6432 (RW)
+      - 6433 (RO)
+      - 8404 (statistic)
+    end note
+}
+
+node "VM1 (10.10.10.30)" as VM1 {
+    database "PostgreSQL (Primary, 10.10.10.30:5432)" as PostgreSQLPrimary
+    component "PgBouncer (10.10.10.30:6432)" as PgBouncerPrimary
+}
+note top of VM1
+  Ports:
+  - 5432 (DB)
+  - 6432 (PgBouncer)
+end note
+
+together {
+    node "VM2 (10.10.10.31)" as VM2 {
+        database "PostgreSQL (Replica 1, 10.10.10.31:5432)" as PostgreSQLReplica1
+        component "PgBouncer (10.10.10.31:6432)" as PgBouncerReplica1
+    }
+
+    node "VM3 (10.10.10.32)" as VM3 {
+        database "PostgreSQL (Replica 2, 10.10.10.32:5432)" as PostgreSQLReplica2
+        component "PgBouncer (10.10.10.32:6432)" as PgBouncerReplica2
+    }
+}
+note top of VM2
+  Ports:
+  - 5432 (DB)
+  - 6432 (PgBouncer)
+end note
+
+note top of VM3
+  Ports:
+  - 5432 (DB)
+  - 6432 (PgBouncer)
+end note
+
+Clients -down-> HAProxy : Connects
+HAProxy -down-> PgBouncerPrimary : Routes RW Traffic
+HAProxy -down-> PgBouncerReplica1 : Routes RO Traffic
+HAProxy -down-> PgBouncerReplica2 : Routes RO Traffic
+
+PgBouncerPrimary --> PostgreSQLPrimary : Manages Connections
+PgBouncerReplica1 --> PostgreSQLReplica1 : Manages Connections
+PgBouncerReplica2 --> PostgreSQLReplica2 : Manages Connections
+
+PostgreSQLPrimary ~~> PostgreSQLReplica1 : Replicates Data
+PostgreSQLPrimary ~~> PostgreSQLReplica2 : Replicates Data
+
+@enduml
