@@ -22,16 +22,20 @@ etcd в качестве распределенного хранилища, и H
 Создайте файл `.env` в корневой папке проекта со следующими переменными:
 
 ```bash
+# PGbouncer
 PGBOUNCER_AUTH_TYPE='scram-sha-256'
+# Patroni
 PATRONI_ETCD3_HOSTS='etcd:2379'
 PATRONI_HTTP_ADMIN='admin'
 PATRONI_HTTP_PASSWORD='admin'
+PATRONI_LOG_LEVEL='DEBUG'
 PATRONI_SUPERUSER_USERNAME='postgres'
 PATRONI_SUPERUSER_PASSWORD='postgres'
 PATRONI_POSTGRESQL_DATA_DIR='/var/lib/postgresql/data'
 PATRONI_POSTGRESQL_LISTEN='0.0.0.0:5432'
-ETCD_INITIAL_CLUSTER='etcd=http://etcd:2380'
+# Etcd
 ALLOW_NONE_AUTHENTICATION='yes'
+ETCD_INITIAL_CLUSTER='etcd=http://etcd:2380'
 ETCD_LISTEN_PEER_URLS='http://0.0.0.0:2380'
 ETCD_LISTEN_CLIENT_URLS='http://0.0.0.0:2379'
 ETCD_INITIAL_CLUSTER_TOKEN='etcd-cluster'
@@ -112,9 +116,10 @@ HAProxy используется для маршрутизации запрос�
 
 ### Структура Docker Compose
 
-- `pgsql15node01`, `pgsql15node02`, `pgsql15node03`: Узлы PostgreSQL, управляемые Patroni.
+- `pgsql15node01`, `pgsql15node02`, `pgsql15node03`: Узлы PostgreSQL, управляемые агентами Patroni.
 - `etcd`: etcd для координации кластера.
 - `haproxy`: Балансировщик нагрузки для PostgreSQL.
+- `barman`: Сервис архивации и резервного копирования.
 
 ## Управление кластером
 

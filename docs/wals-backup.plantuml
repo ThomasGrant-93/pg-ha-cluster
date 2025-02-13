@@ -79,8 +79,8 @@ barman ~up~> PostgreSQLPrimary : Provides Node Recovery
 barman ~up~> PostgreSQLReplica1 : Provides Node Recovery
 barman ~up~> PostgreSQLReplica2 : Provides Node Recovery
 
-cluster -[hidden]- VM8
-cluster -[hidden]- VM8
-cluster -[hidden]- VM8
+VM1 -[hidden]- VM8
+VM2 -[hidden]- VM8
+VM3 -[hidden]- VM8
 
 @enduml

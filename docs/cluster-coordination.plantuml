@@ -45,7 +45,7 @@ end note
 note top of VM3
   Ports:
   - 5432 (DB)
-  - 8002 (API)
+  - 8003 (API)
   - 6432 (PgBouncer)
 end note
 
